@@ -1,0 +1,66 @@
+name: Publish XREYVE OS Public Website
+on:
+  push:
+    branches: [main]
+    paths:
+      - '*.html'
+      - '*.css'
+      - '*.js'
+      - '.github/workflows/deploy-pages.yml'
+      - 'tests/**'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '*.html'
+      - '*.css'
+      - '*.js'
+      - '.github/workflows/deploy-pages.yml'
+      - 'tests/**'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: xreyve-os-public-pages
+  cancel-in-progress: false
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check page routes and public-only files
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Validate local browser review script
+        run: node --check studio.js
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble PUBLIC documents only
+        shell: bash
+        run: |
+          mkdir -p _site
+          cp index.html about.html terms.html privacy.html tiktok-connect.html studio.html _site/
+          cp public-site.css studio.css studio.js _site/
+          touch _site/.nojekyll
+          ! grep -i -r -E 'drive.google.com/drive/folders|client_secret|ghp_[A-Za-z0-9]|sk-proj-' _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
