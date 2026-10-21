@@ -38,7 +38,10 @@ jobs:
       - name: Check page routes and public-only files
         run: python -m unittest discover -s tests -p 'test_*.py' -v
       - name: Validate local browser review script
-        run: node --check studio.js
+        run: |
+          node --check studio.js
+          node --check connections.js
+          node --check connection-config.js
 
   deploy:
     if: github.event_name != 'pull_request'
@@ -56,6 +59,7 @@ jobs:
           mkdir -p _site
           cp index.html about.html terms.html privacy.html tiktok-connect.html studio.html _site/
           cp public-site.css studio.css studio.js _site/
+          cp connection-config.js connections.js _site/
           touch _site/.nojekyll
           ! grep -i -r -E 'drive.google.com/drive/folders|client_secret|ghp_[A-Za-z0-9]|sk-proj-' _site
       - uses: actions/configure-pages@v5
