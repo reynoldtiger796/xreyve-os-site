@@ -5,7 +5,7 @@ import unittest
 
 BASE=Path(__file__).resolve().parents[1]
 PAGES=("index.html","about.html","terms.html","privacy.html","tiktok-connect.html","studio.html")
-ASSETS=("public-site.css","studio.css","studio.js")
+ASSETS=("public-site.css","studio.css","studio.js","connection-config.js","connections.js")
 LINKS=set(PAGES+ASSETS)
 
 
@@ -38,7 +38,7 @@ class PublicSiteTests(unittest.TestCase):
         self.assertIn("local browser",privacy.lower())
         self.assertIn("Privacy Policy",privacy)
         connect=(BASE/"tiktok-connect.html").read_text()
-        self.assertIn("No valid authorization flow is available",connect)
+        self.assertIn("Live Login Kit remains unavailable",connect)
         self.assertIn("not connected",connect.lower())
 
     def test_functioning_demo_is_explicitly_device_only(self):
@@ -56,10 +56,25 @@ class PublicSiteTests(unittest.TestCase):
                           "client_secret","tiktokapis.com", "drive.google.com"):
             self.assertNotIn(forbidden,js)
 
+    def test_tiktok_connection_disabled_without_real_oauth_backend(self):
+        config=(BASE/"connection-config.js").read_text(encoding="utf-8")
+        client=(BASE/"connections.js").read_text(encoding="utf-8")
+        page=(BASE/"tiktok-connect.html").read_text(encoding="utf-8")
+        self.assertIn('authOrigin:""',config)
+        self.assertIn("enabled:false",config)
+        self.assertIn("config.enabled!==true",client)
+        self.assertIn('id="connect-tiktok"',page)
+        self.assertIn('aria-disabled="true"',page)
+        for file in (config,client,page):
+            self.assertNotIn("client_secret",file.lower())
+            self.assertNotIn("refresh_token",file.lower())
+        self.assertNotIn("tiktok.com/v2/auth/authorize",client)
+
     def test_public_only_deployment_artifact(self):
         pipeline=(BASE/".github/workflows/deploy-pages.yml").read_text()
         self.assertIn("cp index.html about.html terms.html privacy.html tiktok-connect.html studio.html",pipeline)
         self.assertIn("cp public-site.css studio.css studio.js",pipeline)
+        self.assertIn("cp connection-config.js connections.js",pipeline)
         self.assertIn("actions/deploy-pages@v4",pipeline)
         self.assertNotIn("xreyve-agency-v1",pipeline)
 
